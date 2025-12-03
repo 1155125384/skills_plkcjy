@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>生活自理能力分類圖 - 會與不會</title>
+    
+    <!-- 載入 Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- 載入 React 和 ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    
+    <!-- 載入 Babel 用於解析 JSX -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <!-- 列印樣式設定 -->
+    <style>
+        @media print {
+            body { background: white; padding: 0; }
+            .print\:hidden { display: none !important; }
+            .min-h-screen { min-height: auto; }
+            .shadow-sm, .shadow-md, .shadow-lg { box-shadow: none !important; }
+            .bg-slate-50 { background: white; }
+            /* 確保背景色在列印時顯示 */
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+        /* 自定義動畫樣式 */
+        @keyframes fadeInZoom {
+            from { opacity: 0; transform: scale(0.9); }
+            to { opacity: 1; transform: scale(1); }
+        }
+        .animate-in {
+            animation: fadeInZoom 0.3s ease-out forwards;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState } = React;
+
+        // --- 內嵌 Icon 元件 ---
+        const IconBase = ({ children, className = "" }) => (
+            <svg 
+                xmlns="http://www.w3.org/2000/svg" 
+                width="24" height="24" viewBox="0 0 24 24" 
+                fill="none" stroke="currentColor" strokeWidth="2" 
+                strokeLinecap="round" strokeLinejoin="round" 
+                className={className}
+            >
+                {children}
+            </svg>
+        );
+
+        const RefreshCcw = ({ className }) => (
+            <IconBase className={className}>
+                <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                <path d="M3 3v5h5" />
+                <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" />
+                <path d="M16 21h5v-5" />
+            </IconBase>
+        );
+
+        const Camera = ({ className }) => (
+            <IconBase className={className}>
+                <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z" />
+                <circle cx="12" cy="13" r="3" />
+            </IconBase>
+        );
+
+        const Trophy = ({ className }) => (
+            <IconBase className={className}>
+                <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6" />
+                <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18" />
+                <path d="M4 22h16" />
+                <path d="M10 14.66V17" />
+                <path d="M14 14.66V17" />
+                <path d="M18 2l-1 9c0 2.5-2 4.5-5 4.5S7 13.5 7 11L6 2h12z" />
+                <path d="M12 17v5" />
+            </IconBase>
+        );
+
+        const HandHelping = ({ className }) => (
+            <IconBase className={className}>
+                <path d="M11 12h2a2 2 0 1 0 0-4h-3c-.6 0-1.1.2-1.4.6L3 14c-1 1-1 2.6 0 3.6 1.4 1.4 3.7 1 5.3-.6l1.3-1.3" />
+                <path d="M19.7 14c1 1 1 2.6 0 3.6-1.4 1.4-3.7 1-5.3-.6l-1.3-1.3" />
+                <path d="M17 14.6V12a2 2 0 0 0-2-2h-1" />
+                <path d="M9.6 4.4a2 2 0 0 1 2.8 0l1 1 .5.4" />
+                <path d="M10.1 7.2 12 9l1 1" />
+            </IconBase>
+        );
+
+        const X = ({ className, size = 24 }) => (
+            <svg 
+                xmlns="http://www.w3.org/2000/svg" 
+                width={size} height={size} viewBox="0 0 24 24" 
+                fill="none" stroke="currentColor" strokeWidth="2" 
+                strokeLinecap="round" strokeLinejoin="round" 
+                className={className}
+            >
+                <path d="M18 6 6 18" />
+                <path d="m6 6 12 12" />
+            </svg>
+        );
+
+        // --- 主應用程式元件 ---
+        const SelfCareSortApp = () => {
+            // 定義項目模板 (來源圖庫)
+            const itemTemplates = [
+                { id: 't6', name: '刷牙', icon: '🪥' },
+                { id: 't7', name: '用筷子', icon: '🥢' },
+                { id: 't8', name: '穿外套', icon: '🧥' },
+                { id: 't9', name: '洗碗', icon: '🍽️' },
+                { id: 't10', name: '梳頭髮', icon: '🪮' },
+            ];
+
+            // 狀態管理：只儲存已放置的項目
+            const [placedItems, setPlacedItems] = useState([]);
+            
+            // 選取狀態
+            const [selectedId, setSelectedId] = useState(null); 
+            const [selectionType, setSelectionType] = useState(null); // 'template' or 'instance'
+
+            // 分類區域定義
+            const categories = [
+                { 
+                    id: 'cant_do', 
+                    title: '不會', 
+                    subtitle: '還需要幫忙',
+                    color: 'bg-orange-100', 
+                    borderColor: 'border-orange-300',
+                    textColor: 'text-orange-700'
+                },
+                { 
+                    id: 'can_do', 
+                    title: '會', 
+                    subtitle: '我可以自己做',
+                    color: 'bg-green-100', 
+                    borderColor: 'border-green-300', 
+                    textColor: 'text-green-700'
+                },
+            ];
+
+            // --- 拖放邏輯 ---
+            const handleDragStart = (e, id, type) => {
+                e.dataTransfer.setData('id', id);
+                e.dataTransfer.setData('type', type);
+            };
+
+            const handleDragOver = (e) => {
+                e.preventDefault();
+            };
+
+            const handleDrop = (e, targetCategoryId) => {
+                e.preventDefault();
+                const id = e.dataTransfer.getData('id');
+                const type = e.dataTransfer.getData('type');
+                processItemMovement(id, type, targetCategoryId);
+            };
+
+            // --- 點擊移動邏輯 ---
+            const handleTemplateClick = (templateId) => {
+                if (selectedId === templateId && selectionType === 'template') {
+                    setSelectedId(null);
+                    setSelectionType(null);
+                } else {
+                    setSelectedId(templateId);
+                    setSelectionType('template');
+                }
+            };
+
+            const handleInstanceClick = (instanceId) => {
+                if (selectedId === instanceId && selectionType === 'instance') {
+                    setSelectedId(null);
+                    setSelectionType(null);
+                } else {
+                    setSelectedId(instanceId);
+                    setSelectionType('instance');
+                }
+            };
+
+            const handleZoneClick = (targetCategoryId) => {
+                if (selectedId && selectionType) {
+                    processItemMovement(selectedId, selectionType, targetCategoryId);
+                    setSelectedId(null);
+                    setSelectionType(null);
+                }
+            };
+
+            // --- 核心資料處理 ---
+            const processItemMovement = (id, type, targetCategoryId) => {
+                if (type === 'template') {
+                    const template = itemTemplates.find(t => t.id === id);
+                    if (template) {
+                        const newItem = {
+                            ...template,
+                            instanceId: Date.now(),
+                            category: targetCategoryId
+                        };
+                        setPlacedItems(prev => [...prev, newItem]);
+                    }
+                } else if (type === 'instance') {
+                    setPlacedItems(prev => prev.map(item => 
+                        item.instanceId.toString() === id.toString() 
+                            ? { ...item, category: targetCategoryId } 
+                            : item
+                    ));
+                }
+            };
+
+            const removeItem = (instanceId) => {
+                setPlacedItems(prev => prev.filter(item => item.instanceId !== instanceId));
+            };
+
+            const handleReset = () => {
+                if(confirm("確定要清空所有分類結果嗎？")) {
+                    setPlacedItems([]);
+                    setSelectedId(null);
+                    setSelectionType(null);
+                }
+            };
+
+            const handlePrint = () => {
+                window.print();
+            };
+
+            return (
+                <div className="min-h-screen bg-slate-50 p-4 font-sans select-none flex flex-col">
+                    {/* 標題區 */}
+                    <header className="text-center mb-6 print:hidden">
+                        <h1 className="text-3xl font-bold text-slate-800 mb-2">
+                            🌱 我的成長紀錄表
+                        </h1>
+                        <p className="text-slate-600">
+                            請從上方選擇項目，放入下面的格子裡。（可以重複選擇喔！）
+                        </p>
+                    </header>
+
+                    {/* 項目來源區 (Templates) */}
+                    <div className="mb-6 p-4 rounded-xl border-2 border-slate-200 bg-white shadow-sm print:hidden">
+                        <div className="text-sm text-slate-500 mb-3 font-medium flex justify-between items-center">
+                            <span>項目選單 (點選或拖曳)</span>
+                            <span className="text-xs bg-indigo-50 text-indigo-600 px-2 py-1 rounded">提示：每個項目只可選擇一次</span>
+                        </div>
+                        <div className="flex flex-wrap gap-3 justify-center">
+                            {itemTemplates.map(template => {
+                                // 檢查此項目是否已經被分類
+                                const isPlaced = placedItems.some(p => p.id === template.id);
+                                
+                                // 如果已經分類，就不顯示在選單中
+                                if (isPlaced) return null;
+
+                                return (
+                                    <div
+                                        key={template.id}
+                                        draggable
+                                        onDragStart={(e) => handleDragStart(e, template.id, 'template')}
+                                        onClick={() => handleTemplateClick(template.id)}
+                                        className={`
+                                            cursor-grab active:cursor-grabbing transform transition-all duration-200
+                                            flex flex-col items-center justify-center w-20 h-20 rounded-lg border-2
+                                            ${selectedId === template.id && selectionType === 'template'
+                                                ? 'bg-indigo-100 border-indigo-500 scale-105 shadow-md' 
+                                                : 'bg-slate-50 border-slate-200 hover:border-indigo-300 hover:bg-white hover:shadow-sm'}
+                                        `}
+                                    >
+                                        <span className="text-3xl mb-1">{template.icon}</span>
+                                        <span className="text-xs font-medium text-slate-700 text-center leading-tight">{template.name}</span>
+                                    </div>
+                                );
+                            })}
+                            
+                            {/* 如果所有項目都分類完了，顯示完成訊息 */}
+                            {placedItems.length === itemTemplates.length && (
+                                <div className="text-slate-400 text-sm py-4 italic">
+                                    太棒了！所有項目都分類完成了 🎉
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* 橫向比較圖表區 (2欄) */}
+                    <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-6 pb-24 max-w-5xl mx-auto w-full">
+                        {categories.map(cat => (
+                            <div 
+                                key={cat.id}
+                                onDragOver={handleDragOver}
+                                onDrop={(e) => handleDrop(e, cat.id)}
+                                onClick={() => handleZoneClick(cat.id)}
+                                className={`
+                                    flex flex-col rounded-2xl border-4 transition-all duration-300 relative overflow-hidden shadow-sm
+                                    ${cat.color} ${cat.borderColor}
+                                    ${selectedId ? 'cursor-pointer hover:ring-4 hover:ring-indigo-200' : ''}
+                                `}
+                            >
+                                {/* 視覺引導效果 */}
+                                {selectedId && (
+                                    <div className="absolute inset-0 bg-white/20 animate-pulse pointer-events-none z-0" />
+                                )}
+
+                                {/* 欄位標題 */}
+                                <div className={`p-5 text-center border-b-2 ${cat.borderColor} bg-white/60 relative z-10`}>
+                                    <h2 className={`text-2xl font-black ${cat.textColor} mt-1`}>{cat.title}</h2>
+                                    <p className={`text-sm ${cat.textColor} opacity-80 mt-1 font-medium`}>{cat.subtitle}</p>
+                                </div>
+
+                                {/* 放置區域 */}
+                                <div className="flex-1 p-4 min-h-[300px] content-start flex flex-wrap gap-3 relative z-10">
+                                    {placedItems.filter(item => item.category === cat.id).map(item => (
+                                        <div
+                                            key={item.instanceId}
+                                            draggable
+                                            onDragStart={(e) => handleDragStart(e, item.instanceId, 'instance')}
+                                            onClick={(e) => { e.stopPropagation(); handleInstanceClick(item.instanceId); }}
+                                            className={`
+                                                relative group cursor-grab active:cursor-grabbing transform transition-all
+                                                flex items-center gap-2 pl-3 pr-8 py-2 rounded-lg shadow-sm border-2 bg-white animate-in
+                                                ${selectedId === item.instanceId && selectionType === 'instance'
+                                                    ? 'border-indigo-500 ring-2 ring-indigo-200 z-20' 
+                                                    : 'border-white/50 hover:border-indigo-200 hover:shadow-md'}
+                                            `}
+                                        >
+                                            <span className="text-xl">{item.icon}</span>
+                                            <span className="font-bold text-slate-700">{item.name}</span>
+                                            
+                                            {/* 刪除按鈕 */}
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    removeItem(item.instanceId);
+                                                }}
+                                                className="absolute right-1 top-1/2 -translate-y-1/2 p-1 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors"
+                                                title="移除"
+                                            >
+                                                <X size={16} />
+                                            </button>
+                                        </div>
+                                    ))}
+                                    
+                                    {placedItems.filter(item => item.category === cat.id).length === 0 && (
+                                        <div className="w-full h-full flex flex-col items-center justify-center text-slate-400/40 py-12 pointer-events-none">
+                                            <div className="text-4xl mb-2 opacity-30">⤵</div>
+                                            <p className="font-medium">拖曳卡片到這裡</p>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+
+                    {/* 底部工具列 */}
+                    <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 flex gap-4 print:hidden z-50">
+                        <button 
+                            onClick={handleReset}
+                            className="flex items-center gap-2 px-6 py-3 bg-white text-slate-700 rounded-full shadow-lg hover:bg-slate-50 border border-slate-200 transition-transform active:scale-95 font-medium"
+                        >
+                            <RefreshCcw className="w-4 h-4" />
+                            重新開始
+                        </button>
+                        <button 
+                            onClick={handlePrint}
+                            className="flex items-center gap-2 px-6 py-3 bg-indigo-600 text-white rounded-full shadow-lg shadow-indigo-200 hover:bg-indigo-700 transition-transform active:scale-95 font-medium"
+                        >
+                            <Camera className="w-4 h-4" />
+                            列印 / 存成 PDF
+                        </button>
+                    </div>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<SelfCareSortApp />);
+    </script>
+</body>
+</html>
